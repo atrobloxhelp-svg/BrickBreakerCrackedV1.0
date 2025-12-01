@@ -13,10 +13,3 @@
     }
   ]
 }
-```
-
-### Step 2: Make sure your file structure looks like this:
-```
-brick-breaker-solver/
-├── index.html
-└── vercel.json
