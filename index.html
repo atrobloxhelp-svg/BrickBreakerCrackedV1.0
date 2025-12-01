@@ -379,7 +379,7 @@
       hiddenCanvas.height = CANVAS_HEIGHT;
       ctx.drawImage(img, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, 800));
 
       bricks = detectBricks(ctx);
       ballCount = 9;
@@ -397,25 +397,40 @@
       const imageData = ctx.getImageData(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
       const data = imageData.data;
 
-      for (let row = 0; row < 15; row++) {
+      // Scan the game area for bricks
+      for (let row = 0; row < 12; row++) {
         for (let col = 0; col < GRID_SIZE; col++) {
           const x = col * BRICK_SIZE;
-          const y = row * BRICK_SIZE + 150;
+          const y = row * BRICK_SIZE + 180; // Adjusted starting position
 
-          if (y > 600) break;
+          if (y > 580) break;
 
           const centerX = Math.floor(x + BRICK_SIZE / 2);
           const centerY = Math.floor(y + BRICK_SIZE / 2);
 
           if (centerX >= CANVAS_WIDTH || centerY >= CANVAS_HEIGHT) continue;
 
-          const idx = (centerY * CANVAS_WIDTH + centerX) * 4;
-          const r = data[idx];
-          const g = data[idx + 1];
-          const b = data[idx + 2];
+          // Sample multiple points to detect bricks
+          let hasContent = false;
+          let totalBrightness = 0;
+          const samplePoints = 5;
+          
+          for (let sy = -10; sy <= 10; sy += 5) {
+            for (let sx = -10; sx <= 10; sx += 5) {
+              const px = Math.floor(centerX + sx);
+              const py = Math.floor(centerY + sy);
+              if (px >= 0 && px < CANVAS_WIDTH && py >= 0 && py < CANVAS_HEIGHT) {
+                const idx = (py * CANVAS_WIDTH + px) * 4;
+                const brightness = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+                totalBrightness += brightness;
+                if (brightness > 30) hasContent = true;
+              }
+            }
+          }
 
-          if (r > 50 || g > 50 || b > 50) {
-            const value = Math.floor(Math.random() * 8) + 7 + row;
+          if (hasContent && totalBrightness > 500) {
+            // Estimate brick value based on position (lower rows = harder)
+            const value = Math.min(13, Math.max(1, Math.floor(1 + row * 1.2)));
             bricks.push({ x: col, y: row, value: value });
           }
         }
@@ -469,8 +484,8 @@
           vx = -Math.abs(vx);
           path.push({ x, y, type: 'bounce' });
         }
-        if (y <= 150) {
-          y = 150;
+        if (y <= 180) {
+          y = 180;
           vy = Math.abs(vy);
           path.push({ x, y, type: 'bounce' });
         }
@@ -480,7 +495,7 @@
 
           const brickLeft = brick.x * BRICK_SIZE;
           const brickRight = brickLeft + BRICK_SIZE;
-          const brickTop = brick.y * BRICK_SIZE + 150;
+          const brickTop = brick.y * BRICK_SIZE + 180;
           const brickBottom = brickTop + BRICK_SIZE;
 
           if (x >= brickLeft && x <= brickRight && y >= brickTop && y <= brickBottom) {
