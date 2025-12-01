@@ -43,26 +43,47 @@
       box-shadow: 0 20px 60px rgba(0,0,0,0.5);
       margin-bottom: 20px;
     }
-    .upload-btn {
-      width: 100%;
-      background: linear-gradient(135deg, #9333ea 0%, #ec4899 100%);
-      color: white;
-      padding: 16px 24px;
-      border-radius: 12px;
-      font-weight: bold;
-      font-size: 18px;
+    .upload-area {
+      border: 3px dashed #9333ea;
+      border-radius: 16px;
+      padding: 40px 20px;
       text-align: center;
       cursor: pointer;
-      border: none;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
       transition: all 0.3s;
+      background: rgba(147, 51, 234, 0.1);
     }
-    .upload-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(147,51,234,0.4); }
-    .upload-btn:active { transform: translateY(0); }
-    input[type="file"] { display: none; }
+    .upload-area:hover {
+      background: rgba(147, 51, 234, 0.2);
+      border-color: #a855f7;
+    }
+    .upload-area:active {
+      transform: scale(0.98);
+    }
+    .upload-icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 16px;
+      opacity: 0.8;
+    }
+    .upload-text {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+    .upload-subtext {
+      font-size: 14px;
+      color: #d1d5db;
+    }
+    input[type="file"] { 
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      border: 0;
+    }
     .info-box {
       background: #374151;
       border-radius: 12px;
@@ -109,8 +130,10 @@
     }
     .btn-blue { background: #2563eb; }
     .btn-blue:hover { background: #1d4ed8; }
+    .btn-blue:active { background: #1e40af; }
     .btn-gray { background: #374151; }
     .btn-gray:hover { background: #4b5563; }
+    .btn-gray:active { background: #6b7280; }
     .success-box {
       background: linear-gradient(135deg, #059669 0%, #10b981 100%);
       border-radius: 20px;
@@ -157,15 +180,22 @@
       border: 3px solid rgba(255,255,255,0.3);
       border-top: 3px solid white;
       border-radius: 50%;
-      width: 24px;
-      height: 24px;
+      width: 48px;
+      height: 48px;
       animation: spin 1s linear infinite;
+      margin: 20px auto;
     }
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
     .hidden { display: none !important; }
+    .analyzing-text {
+      text-align: center;
+      font-size: 16px;
+      font-weight: bold;
+      margin-top: 12px;
+    }
   </style>
 </head>
 <body>
@@ -185,12 +215,14 @@
     <div id="upload-section">
       <div class="card">
         <input type="file" id="file-input" accept="image/*">
-        <label for="file-input" class="upload-btn" id="upload-label">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-            <circle cx="12" cy="13" r="4"/>
+        <label for="file-input" class="upload-area" id="upload-area">
+          <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
           </svg>
-          <span id="upload-text">Take/Upload Screenshot</span>
+          <div class="upload-text">Choose Screenshot from Photos</div>
+          <div class="upload-subtext">Tap here to select from camera roll</div>
         </label>
 
         <div class="info-box">
@@ -203,15 +235,22 @@
             How to Use:
           </h3>
           <ol>
-            <li>Take a screenshot of your Brick Breaker game</li>
-            <li>Upload it using the button above</li>
+            <li>Take a screenshot of your Brick Breaker game first</li>
+            <li>Tap the upload area above</li>
+            <li>Select your screenshot from Photos</li>
             <li>Wait for AI analysis (2-3 seconds)</li>
-            <li>See the optimal shot path in green</li>
+            <li>Follow the green line for optimal shot!</li>
             <li>Yellow dots = wall bounces</li>
             <li>Red dots = brick hits with values</li>
-            <li>Download and use as reference!</li>
           </ol>
         </div>
+      </div>
+    </div>
+
+    <div id="analyzing-section" class="hidden">
+      <div class="card">
+        <div class="spinner"></div>
+        <div class="analyzing-text">Analyzing your screenshot...</div>
       </div>
     </div>
 
@@ -279,14 +318,29 @@
     let optimalPath = null;
 
     const fileInput = document.getElementById('file-input');
-    const uploadLabel = document.getElementById('upload-label');
-    const uploadText = document.getElementById('upload-text');
+    const uploadArea = document.getElementById('upload-area');
     const uploadSection = document.getElementById('upload-section');
+    const analyzingSection = document.getElementById('analyzing-section');
     const resultSection = document.getElementById('result-section');
     const solutionCanvas = document.getElementById('solution-canvas');
     const hiddenCanvas = document.getElementById('hidden-canvas');
     const downloadBtn = document.getElementById('download-btn');
     const resetBtn = document.getElementById('reset-btn');
+
+    // Prevent default drag behavior
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        handleFile(files[0]);
+      }
+    });
 
     fileInput.addEventListener('change', handleImageUpload);
     downloadBtn.addEventListener('click', downloadSolution);
@@ -295,8 +349,17 @@
     function handleImageUpload(e) {
       const file = e.target.files[0];
       if (!file) return;
+      handleFile(file);
+    }
 
-      uploadText.innerHTML = '<div class="spinner"></div> Analyzing...';
+    function handleFile(file) {
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+
+      uploadSection.classList.add('hidden');
+      analyzingSection.classList.remove('hidden');
 
       const reader = new FileReader();
       reader.onload = (event) => {
@@ -316,7 +379,7 @@
       hiddenCanvas.height = CANVAS_HEIGHT;
       ctx.drawImage(img, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
       bricks = detectBricks(ctx);
       ballCount = 9;
@@ -325,7 +388,7 @@
       calculateOptimalShot();
       drawSolution();
 
-      uploadSection.classList.add('hidden');
+      analyzingSection.classList.add('hidden');
       resultSection.classList.remove('hidden');
     }
 
@@ -563,8 +626,8 @@
       bricks = [];
       optimalPath = null;
       fileInput.value = '';
-      uploadText.textContent = 'Take/Upload Screenshot';
       uploadSection.classList.remove('hidden');
+      analyzingSection.classList.add('hidden');
       resultSection.classList.add('hidden');
     }
   </script>
